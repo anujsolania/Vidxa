@@ -3,6 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
+import videoRoutes from './routes/videos';
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/videos', videoRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });

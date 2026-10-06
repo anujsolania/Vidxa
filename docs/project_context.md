@@ -12,15 +12,15 @@ Vidxa is a web application that allows users to upload videos, automatically tra
 - **Video Processing (Planned):** FFmpeg for metadata and audio extraction.
 - **Transcription (Planned):** Local Whisper model.
 
-## Current State (End of Phase 2)
+## Current State (End of Phase 3)
 We are building the project phase by phase.
 
 - **Phase 0:** Project scaffolding and infrastructure (Docker compose for DB).
 - **Phase 1:** Basic application setup. Express server, React frontend, PostgreSQL connection.
 - **Phase 2:** Authentication system. Register, Login, Logout, and Protected Routes functionality. Replaced raw `pg` driver with `Prisma` for database operations.
+- **Phase 3:** Video Upload & Library. Configured `multer` for local file storage, created Prisma models, built the HTTP 206 Partial Content video streaming endpoint, and wired up the Dashboard grid & Video Player UI.
 
 ## Upcoming Phases
-- **Phase 3:** Video Upload & Library (Local storage logic and video metadata tracking).
 - **Phase 4:** FFmpeg Processing (Extract duration, dimensions, thumbnails, audio).
 - **Phase 5:** Background Processing (Move FFmpeg tasks to BullMQ workers).
 - **Phase 6:** Whisper Transcription (Generate timestamped transcriptions).
