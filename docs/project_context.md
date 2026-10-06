@@ -38,3 +38,7 @@ DATABASE_URL=postgres://postgres:password@localhost:5432/vidxa
 JWT_SECRET=super_secret_key_change_in_production
 NODE_ENV=development
 ```
+
+## Troubleshooting & Fixes
+- **TypeScript `verbatimModuleSyntax` Error**: Fixed an issue where TypeScript reported `ECMAScript imports and exports cannot be written in a CommonJS file`. Resolved by changing `module` to `commonjs`, disabling `verbatimModuleSyntax`, and enabling `esModuleInterop` in `server/tsconfig.json`.
+- **Prisma `parseInt(id)` Type Error**: Fixed type complaints for `req.params.id` in `videoController.ts` by explicitly casting it to string (`id as string`).

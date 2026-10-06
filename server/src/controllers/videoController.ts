@@ -2,6 +2,12 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { getStoragePath, getFileSize, getFileStream } from '../lib/storage';
 
+// Helper to serialize BigInt properties from Prisma
+const serializeVideo = (video: any) => ({
+  ...video,
+  size: video.size != null ? video.size.toString() : video.size,
+});
+
 export const uploadVideo = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).userId;
@@ -26,7 +32,7 @@ export const uploadVideo = async (req: Request, res: Response): Promise<void> =>
       }
     });
 
-    res.status(201).json({ video });
+    res.status(201).json({ video: serializeVideo(video) });
   } catch (error) {
     console.error('Error uploading video:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -41,7 +47,7 @@ export const listVideos = async (req: Request, res: Response): Promise<void> => 
       orderBy: { createdAt: 'desc' }
     });
 
-    res.json({ videos });
+    res.json({ videos: videos.map(serializeVideo) });
   } catch (error) {
     console.error('Error listing videos:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -54,7 +60,7 @@ export const getVideoDetails = async (req: Request, res: Response): Promise<void
     const { id } = req.params;
 
     const video = await prisma.video.findUnique({
-      where: { id: parseInt(id) }
+      where: { id: parseInt(id as string, 10) }
     });
 
     if (!video) {
@@ -68,7 +74,7 @@ export const getVideoDetails = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    res.json({ video });
+    res.json({ video: serializeVideo(video) });
   } catch (error) {
     console.error('Error getting video:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -81,7 +87,7 @@ export const streamVideo = async (req: Request, res: Response): Promise<void> =>
     const { id } = req.params;
 
     const video = await prisma.video.findUnique({
-      where: { id: parseInt(id) }
+      where: { id: parseInt(id as string, 10) }
     });
 
     if (!video) {
