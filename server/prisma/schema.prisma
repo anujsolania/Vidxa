@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  videos       Video[]
+
+  @@map("users")
+}
+
+model Video {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  title        String
+  filename     String
+  storagePath  String   @map("storage_path")
+  mimeType     String   @map("mime_type")
+  size         BigInt
+  duration     Int      @default(0)
+  status       String   @default("UPLOADING")
+  errorMessage String?  @map("error_message")
+  createdAt    DateTime @default(now()) @map("created_at")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("videos")
+}
