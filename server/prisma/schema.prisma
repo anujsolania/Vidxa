@@ -26,6 +26,8 @@ model Video {
   mimeType     String   @map("mime_type")
   size         BigInt
   duration     Int      @default(0)
+  thumbnailPath String? @map("thumbnail_path")
+  audioPath    String?  @map("audio_path")
   status       String   @default("UPLOADING")
   errorMessage String?  @map("error_message")
   createdAt    DateTime @default(now()) @map("created_at")

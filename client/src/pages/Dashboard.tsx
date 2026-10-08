@@ -23,7 +23,16 @@ interface Video {
   filename: string;
   status: string;
   createdAt: string;
+  thumbnailPath?: string;
+  duration?: number;
 }
+
+const formatDuration = (seconds?: number) => {
+  if (!seconds) return '0:00';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+};
 
 const Dashboard: React.FC = () => {
   const { user, setUser } = useContext(AuthContext);
@@ -33,8 +42,18 @@ const Dashboard: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
+  // Auto-refresh every 5s if there are processing videos
   useEffect(() => {
     fetchVideos();
+    const interval = setInterval(() => {
+      setVideos(prev => {
+        if (prev.some(v => v.status === 'PROCESSING')) {
+          fetchVideos();
+        }
+        return prev;
+      });
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchVideos = async () => {
@@ -147,8 +166,17 @@ const Dashboard: React.FC = () => {
             {videos.map(video => (
               <Link to={`/videos/${video.id}`} key={video.id} style={{ textDecoration: 'none' }}>
                 <div className="glass-panel" style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s ease, border-color 0.2s ease' }}>
-                  <div style={{ width: '100%', height: '150px', background: 'var(--glass-border)', borderRadius: '8px', marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <VideoIcon />
+                  <div style={{ width: '100%', height: '150px', background: 'var(--glass-border)', borderRadius: '8px', marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
+                    {video.thumbnailPath ? (
+                      <img src={`http://localhost:4000${video.thumbnailPath}`} alt="thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <VideoIcon />
+                    )}
+                    {video.duration ? (
+                      <span style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.8)', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                        {formatDuration(video.duration)}
+                      </span>
+                    ) : null}
                   </div>
                   <h3 style={{ color: 'var(--text-color)', marginBottom: '0.5rem', fontSize: '1.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{video.title}</h3>
                   <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.85rem' }}>

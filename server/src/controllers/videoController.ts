@@ -8,6 +8,49 @@ const serializeVideo = (video: any) => ({
   size: video.size != null ? video.size.toString() : video.size,
 });
 
+import { extractVideoMetadata, generateThumbnail, extractAudio } from '../lib/ffmpeg';
+import { getThumbnailPath, getAudioPath } from '../lib/storage';
+
+const processVideoInBackground = async (videoId: number, filename: string) => {
+  try {
+    const videoPath = getStoragePath(filename);
+    
+    // 1. Extract Metadata
+    const metadata = await extractVideoMetadata(videoPath);
+    
+    // 2. Generate Thumbnail
+    const thumbnailFilename = filename.replace(/\.[^/.]+$/, "") + '.jpg';
+    const thumbnailPath = getThumbnailPath(thumbnailFilename);
+    await generateThumbnail(videoPath, thumbnailPath);
+
+    // 3. Extract Audio
+    const audioFilename = filename.replace(/\.[^/.]+$/, "") + '.mp3';
+    const audioPath = getAudioPath(audioFilename);
+    await extractAudio(videoPath, audioPath);
+
+    // 4. Update DB
+    await prisma.video.update({
+      where: { id: videoId },
+      data: { 
+        duration: metadata.duration,
+        thumbnailPath: `/uploads/thumbnails/${thumbnailFilename}`,
+        audioPath: `/uploads/audio/${audioFilename}`,
+        status: 'READY'
+      }
+    });
+
+  } catch (error: any) {
+    console.error(`Error processing video ${videoId}:`, error);
+    await prisma.video.update({
+      where: { id: videoId },
+      data: { 
+        status: 'ERROR',
+        errorMessage: error.message
+      }
+    });
+  }
+};
+
 export const uploadVideo = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).userId;
@@ -28,9 +71,12 @@ export const uploadVideo = async (req: Request, res: Response): Promise<void> =>
         storagePath: getStoragePath(file.filename),
         mimeType: file.mimetype,
         size: file.size,
-        status: 'READY' // Phase 3 sets this directly. In Phase 5, this will be 'PROCESSING'
+        status: 'PROCESSING'
       }
     });
+
+    // Fire and forget processing
+    processVideoInBackground(video.id, file.filename);
 
     res.status(201).json({ video: serializeVideo(video) });
   } catch (error) {
