@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { uploadVideo, listVideos, getVideoDetails, streamVideo } from '../controllers/videoController';
+import { uploadVideo, listVideos, getVideoDetails, streamVideo, reprocessVideo } from '../controllers/videoController';
 import { requireAuth } from '../middlewares/authMiddleware';
 import { getStoragePath } from '../lib/storage';
 
@@ -23,5 +23,6 @@ router.post('/upload', requireAuth, upload.single('video'), uploadVideo);
 router.get('/', requireAuth, listVideos);
 router.get('/:id', requireAuth, getVideoDetails);
 router.get('/:id/stream', requireAuth, streamVideo);
+router.post('/:id/reprocess', requireAuth, reprocessVideo);
 
 export default router;

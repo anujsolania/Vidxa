@@ -1,9 +1,11 @@
 import ffmpeg from 'fluent-ffmpeg';
+import path from 'path';
 
 export interface VideoMetadata {
   duration: number; // in seconds
   width: number;
   height: number;
+  hasAudio: boolean;
 }
 
 export const extractVideoMetadata = (videoPath: string): Promise<VideoMetadata> => {
@@ -12,25 +14,31 @@ export const extractVideoMetadata = (videoPath: string): Promise<VideoMetadata> 
       if (err) return reject(err);
 
       const videoStream = metadata.streams.find(s => s.codec_type === 'video');
+      const audioStream = metadata.streams.find(s => s.codec_type === 'audio');
       if (!videoStream) return reject(new Error('No video stream found'));
 
       resolve({
         duration: metadata.format.duration ? Math.round(metadata.format.duration) : 0,
         width: videoStream.width || 0,
-        height: videoStream.height || 0
+        height: videoStream.height || 0,
+        hasAudio: !!audioStream
       });
     });
   });
 };
 
-export const generateThumbnail = (videoPath: string, thumbnailPath: string): Promise<void> => {
+export const generateThumbnail = (videoPath: string, thumbnailPath: string, duration: number = 0): Promise<void> => {
   return new Promise((resolve, reject) => {
-    // Generate a thumbnail at the 1-second mark
+    // Generate a thumbnail at 1-second mark, or 0s if video is shorter
+    const timestamp = duration > 1 ? 1 : 0;
+    const filename = path.basename(thumbnailPath);
+    const folder = path.dirname(thumbnailPath);
+
     ffmpeg(videoPath)
       .screenshots({
-        timestamps: [1],
-        filename: thumbnailPath.split('/').pop(), // fluent-ffmpeg expects just the filename here
-        folder: thumbnailPath.split('/').slice(0, -1).join('/'), // and the folder here
+        timestamps: [timestamp],
+        filename,
+        folder,
         size: '320x180'
       })
       .on('end', () => resolve())
@@ -45,6 +53,7 @@ export const extractAudio = (videoPath: string, audioPath: string): Promise<void
       .noVideo() // Strip video
       .audioCodec('libmp3lame') // Convert audio to mp3
       .on('end', () => resolve())
-      .on('error', (err) => reject(err));
+      .on('error', (err) => reject(err))
+      .run();
   });
 };

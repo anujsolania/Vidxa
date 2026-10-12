@@ -11,7 +11,7 @@ const serializeVideo = (video: any) => ({
 import { extractVideoMetadata, generateThumbnail, extractAudio } from '../lib/ffmpeg';
 import { getThumbnailPath, getAudioPath } from '../lib/storage';
 
-const processVideoInBackground = async (videoId: number, filename: string) => {
+export const processVideoInBackground = async (videoId: number, filename: string) => {
   try {
     const videoPath = getStoragePath(filename);
     
@@ -21,12 +21,16 @@ const processVideoInBackground = async (videoId: number, filename: string) => {
     // 2. Generate Thumbnail
     const thumbnailFilename = filename.replace(/\.[^/.]+$/, "") + '.jpg';
     const thumbnailPath = getThumbnailPath(thumbnailFilename);
-    await generateThumbnail(videoPath, thumbnailPath);
+    await generateThumbnail(videoPath, thumbnailPath, metadata.duration);
 
-    // 3. Extract Audio
-    const audioFilename = filename.replace(/\.[^/.]+$/, "") + '.mp3';
-    const audioPath = getAudioPath(audioFilename);
-    await extractAudio(videoPath, audioPath);
+    // 3. Extract Audio (only if audio stream is present)
+    let audioRelPath: string | null = null;
+    if (metadata.hasAudio) {
+      const audioFilename = filename.replace(/\.[^/.]+$/, "") + '.mp3';
+      const audioPath = getAudioPath(audioFilename);
+      await extractAudio(videoPath, audioPath);
+      audioRelPath = `/uploads/audio/${audioFilename}`;
+    }
 
     // 4. Update DB
     await prisma.video.update({
@@ -34,8 +38,9 @@ const processVideoInBackground = async (videoId: number, filename: string) => {
       data: { 
         duration: metadata.duration,
         thumbnailPath: `/uploads/thumbnails/${thumbnailFilename}`,
-        audioPath: `/uploads/audio/${audioFilename}`,
-        status: 'READY'
+        audioPath: audioRelPath,
+        status: 'READY',
+        errorMessage: null
       }
     });
 
@@ -182,3 +187,37 @@ export const streamVideo = async (req: Request, res: Response): Promise<void> =>
     }
   }
 };
+
+export const reprocessVideo = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).userId;
+    const { id } = req.params;
+
+    const video = await prisma.video.findUnique({
+      where: { id: parseInt(id as string, 10) }
+    });
+
+    if (!video) {
+      res.status(404).json({ error: 'Video not found' });
+      return;
+    }
+
+    if (video.userId !== userId) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    await prisma.video.update({
+      where: { id: video.id },
+      data: { status: 'PROCESSING', errorMessage: null }
+    });
+
+    processVideoInBackground(video.id, video.filename);
+
+    res.json({ message: 'Reprocessing started', video: serializeVideo(video) });
+  } catch (error) {
+    console.error('Error reprocessing video:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
