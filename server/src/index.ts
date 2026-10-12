@@ -8,6 +8,10 @@ import path from 'path';
 
 dotenv.config();
 
+// Initialize BullMQ worker
+import './workers/videoWorker';
+
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 

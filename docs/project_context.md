@@ -12,7 +12,7 @@ Vidxa is a web application that allows users to upload videos, automatically tra
 - **Video Processing (Planned):** FFmpeg for metadata and audio extraction.
 - **Transcription (Planned):** Local Whisper model.
 
-## Current State (End of Phase 4)
+## Current State (End of Phase 5)
 We are building the project phase by phase.
 
 - **Phase 0:** Project scaffolding and infrastructure (Docker compose for DB).
@@ -20,9 +20,9 @@ We are building the project phase by phase.
 - **Phase 2:** Authentication system. Register, Login, Logout, and Protected Routes functionality. Replaced raw `pg` driver with `Prisma` for database operations.
 - **Phase 3:** Video Upload & Library. Configured `multer` for local file storage, created Prisma models, built the HTTP 206 Partial Content video streaming endpoint, and wired up the Dashboard grid & Video Player UI.
 - **Phase 4:** FFmpeg Processing. Added `fluent-ffmpeg` to synchronously extract video duration, capture 1s thumbnails, and extract audio tracks into `.mp3` format immediately after upload. Exposed static routes to serve thumbnails on the frontend Dashboard grid.
+- **Phase 5:** Background Processing (Redis + BullMQ). Added Redis 7 container to Docker Compose. Configured BullMQ `video-processing` queue with automatic exponential backoff retries (3 attempts). Offloaded heavy FFmpeg tasks from Express controllers to a dedicated BullMQ worker with controlled concurrency (2 simultaneous jobs). Controller immediately returns HTTP 201 on upload.
 
 ## Upcoming Phases
-- **Phase 5:** Background Processing (Move FFmpeg tasks to BullMQ workers).
 - **Phase 6:** Whisper Transcription (Generate timestamped transcriptions).
 - **Phase 7:** Transcript UI (Interactive transcript on the video player).
 - **Phase 8:** Full-Text Search inside a video.
@@ -34,9 +34,11 @@ We are building the project phase by phase.
 ### Backend (`server/.env`)
 ```
 PORT=4000
-DATABASE_URL=postgres://postgres:password@localhost:5432/vidxa
+DATABASE_URL=postgres://postgres:password@localhost:5433/vidxa
 JWT_SECRET=super_secret_key_change_in_production
 NODE_ENV=development
+REDIS_HOST=localhost
+REDIS_PORT=6379
 ```
 
 ## Troubleshooting & Fixes

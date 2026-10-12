@@ -8,53 +8,7 @@ const serializeVideo = (video: any) => ({
   size: video.size != null ? video.size.toString() : video.size,
 });
 
-import { extractVideoMetadata, generateThumbnail, extractAudio } from '../lib/ffmpeg';
-import { getThumbnailPath, getAudioPath } from '../lib/storage';
-
-export const processVideoInBackground = async (videoId: number, filename: string) => {
-  try {
-    const videoPath = getStoragePath(filename);
-    
-    // 1. Extract Metadata
-    const metadata = await extractVideoMetadata(videoPath);
-    
-    // 2. Generate Thumbnail
-    const thumbnailFilename = filename.replace(/\.[^/.]+$/, "") + '.jpg';
-    const thumbnailPath = getThumbnailPath(thumbnailFilename);
-    await generateThumbnail(videoPath, thumbnailPath, metadata.duration);
-
-    // 3. Extract Audio (only if audio stream is present)
-    let audioRelPath: string | null = null;
-    if (metadata.hasAudio) {
-      const audioFilename = filename.replace(/\.[^/.]+$/, "") + '.mp3';
-      const audioPath = getAudioPath(audioFilename);
-      await extractAudio(videoPath, audioPath);
-      audioRelPath = `/uploads/audio/${audioFilename}`;
-    }
-
-    // 4. Update DB
-    await prisma.video.update({
-      where: { id: videoId },
-      data: { 
-        duration: metadata.duration,
-        thumbnailPath: `/uploads/thumbnails/${thumbnailFilename}`,
-        audioPath: audioRelPath,
-        status: 'READY',
-        errorMessage: null
-      }
-    });
-
-  } catch (error: any) {
-    console.error(`Error processing video ${videoId}:`, error);
-    await prisma.video.update({
-      where: { id: videoId },
-      data: { 
-        status: 'ERROR',
-        errorMessage: error.message
-      }
-    });
-  }
-};
+import { addVideoProcessingJob } from '../queues/videoQueue';
 
 export const uploadVideo = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -80,8 +34,8 @@ export const uploadVideo = async (req: Request, res: Response): Promise<void> =>
       }
     });
 
-    // Fire and forget processing
-    processVideoInBackground(video.id, file.filename);
+    // Enqueue job in BullMQ
+    await addVideoProcessingJob(video.id, file.filename);
 
     res.status(201).json({ video: serializeVideo(video) });
   } catch (error) {
@@ -212,7 +166,7 @@ export const reprocessVideo = async (req: Request, res: Response): Promise<void>
       data: { status: 'PROCESSING', errorMessage: null }
     });
 
-    processVideoInBackground(video.id, video.filename);
+    await addVideoProcessingJob(video.id, video.filename);
 
     res.json({ message: 'Reprocessing started', video: serializeVideo(video) });
   } catch (error) {

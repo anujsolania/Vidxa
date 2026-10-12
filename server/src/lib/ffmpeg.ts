@@ -49,11 +49,10 @@ export const generateThumbnail = (videoPath: string, thumbnailPath: string, dura
 export const extractAudio = (videoPath: string, audioPath: string): Promise<void> => {
   return new Promise((resolve, reject) => {
     ffmpeg(videoPath)
-      .output(audioPath)
       .noVideo() // Strip video
       .audioCodec('libmp3lame') // Convert audio to mp3
       .on('end', () => resolve())
       .on('error', (err) => reject(err))
-      .run();
+      .save(audioPath); // Simpler, idiomatic, auto-triggers execution without needing explicit .run()
   });
 };
