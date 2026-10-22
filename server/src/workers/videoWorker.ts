@@ -3,6 +3,7 @@ import { redisConnection } from '../lib/redis';
 import { prisma } from '../lib/prisma';
 import { getStoragePath, getThumbnailPath, getAudioPath } from '../lib/storage';
 import { extractVideoMetadata, generateThumbnail, extractAudio } from '../lib/ffmpeg';
+import { transcribeAudio } from '../lib/whisper';
 import { VideoJobData } from '../queues/videoQueue';
 
 export const videoWorker = new Worker<VideoJobData>(
@@ -23,14 +24,38 @@ export const videoWorker = new Worker<VideoJobData>(
 
     // 3. Extract Audio (if stream exists)
     let audioRelPath: string | null = null;
+    let fullAudioPath: string | null = null;
     if (metadata.hasAudio) {
       const audioFilename = filename.replace(/\.[^/.]+$/, '') + '.mp3';
-      const audioPath = getAudioPath(audioFilename);
-      await extractAudio(videoPath, audioPath);
+      fullAudioPath = getAudioPath(audioFilename);
+      await extractAudio(videoPath, fullAudioPath);
       audioRelPath = `/uploads/audio/${audioFilename}`;
     }
 
-    // 4. Update Database
+    // 4. Transcribe Audio with Whisper (if audio was extracted)
+    if (fullAudioPath) {
+      console.log(`[Worker] Transcribing audio for video ID: ${videoId}...`);
+      const segments = await transcribeAudio(fullAudioPath);
+      console.log(`[Worker] Generated ${segments.length} transcript segments for video ID: ${videoId}`);
+
+      // Delete existing segments (for reprocess safety) and bulk insert
+      await prisma.transcriptSegment.deleteMany({
+        where: { videoId },
+      });
+
+      if (segments.length > 0) {
+        await prisma.transcriptSegment.createMany({
+          data: segments.map((seg) => ({
+            videoId,
+            start: seg.start,
+            end: seg.end,
+            text: seg.text,
+          })),
+        });
+      }
+    }
+
+    // 5. Update Database
     await prisma.video.update({
       where: { id: videoId },
       data: {

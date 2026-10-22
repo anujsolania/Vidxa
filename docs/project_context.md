@@ -12,7 +12,7 @@ Vidxa is a web application that allows users to upload videos, automatically tra
 - **Video Processing (Planned):** FFmpeg for metadata and audio extraction.
 - **Transcription (Planned):** Local Whisper model.
 
-## Current State (End of Phase 5)
+## Current State (End of Phase 6)
 We are building the project phase by phase.
 
 - **Phase 0:** Project scaffolding and infrastructure (Docker compose for DB).
@@ -21,14 +21,13 @@ We are building the project phase by phase.
 - **Phase 3:** Video Upload & Library. Configured `multer` for local file storage, created Prisma models, built the HTTP 206 Partial Content video streaming endpoint, and wired up the Dashboard grid & Video Player UI.
 - **Phase 4:** FFmpeg Processing. Added `fluent-ffmpeg` to synchronously extract video duration, capture 1s thumbnails, and extract audio tracks into `.mp3` format immediately after upload. Exposed static routes to serve thumbnails on the frontend Dashboard grid.
 - **Phase 5:** Background Processing (Redis + BullMQ). Added Redis 7 container to Docker Compose. Configured BullMQ `video-processing` queue with automatic exponential backoff retries (3 attempts). Offloaded heavy FFmpeg tasks from Express controllers to a dedicated BullMQ worker with controlled concurrency (2 simultaneous jobs). Controller immediately returns HTTP 201 on upload.
+- **Phase 6:** Whisper Transcription. Integrated local Whisper model inference (`@xenova/transformers` with `Xenova/whisper-tiny.en`). Extended the Prisma schema with a `TranscriptSegment` table (`videoId`, `start`, `end`, `text`). The BullMQ worker converts extracted audio to 16kHz mono WAV, runs Whisper speech recognition, and saves timestamped segments to PostgreSQL before marking the video `READY`. Exposed `GET /api/videos/:id/transcript` and wired up an interactive, clickable transcript UI on the Video Player page that jumps directly to the spoken moment in the video.
 
 ## Upcoming Phases
-- **Phase 6:** Whisper Transcription (Generate timestamped transcriptions).
-- **Phase 7:** Transcript UI (Interactive transcript on the video player).
-- **Phase 8:** Full-Text Search inside a video.
-- **Phase 9:** Full-Text Search across all videos.
-- **Phase 10 & 11:** Improved search with vector embeddings (pgvector).
-- **Phase 12:** MVP Polish.
+- **Phase 7 & 8:** Full-Text Search inside a video (Search query highlights & jumps to matching timestamps).
+- **Phase 9:** Global Full-Text Search across all user videos.
+- **Phase 10 & 11:** Semantic Search with vector embeddings (pgvector).
+- **Phase 12:** MVP Polish & Production Readiness.
 
 ## Environment Variables Needed
 ### Backend (`server/.env`)

@@ -175,3 +175,38 @@ export const reprocessVideo = async (req: Request, res: Response): Promise<void>
   }
 };
 
+export const getTranscript = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).userId;
+    const { id } = req.params;
+
+    const video = await prisma.video.findUnique({
+      where: { id: parseInt(id as string, 10) },
+      include: {
+        transcriptSegments: {
+          orderBy: { start: 'asc' },
+        },
+      },
+    });
+
+    if (!video) {
+      res.status(404).json({ error: 'Video not found' });
+      return;
+    }
+
+    if (video.userId !== userId) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    res.json({
+      videoId: video.id,
+      segments: video.transcriptSegments,
+    });
+  } catch (error) {
+    console.error('Error fetching transcript:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+

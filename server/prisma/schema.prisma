@@ -32,6 +32,20 @@ model Video {
   errorMessage String?  @map("error_message")
   createdAt    DateTime @default(now()) @map("created_at")
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transcriptSegments TranscriptSegment[]
 
   @@map("videos")
 }
+
+model TranscriptSegment {
+  id        Int      @id @default(autoincrement())
+  videoId   Int      @map("video_id")
+  start     Float
+  end       Float
+  text      String
+  createdAt DateTime @default(now()) @map("created_at")
+  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@map("transcript_segments")
+}
+
